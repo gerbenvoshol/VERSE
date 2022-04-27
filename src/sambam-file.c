@@ -316,10 +316,11 @@ int PBam_get_next_zchunk(FILE * bam_fp, char * buffer, int buffer_length, unsign
 
 	if(feof(bam_fp)) return -1;
 
-	fread(&ID1, 1, 1, bam_fp);
-	fread(&ID2, 1, 1, bam_fp);
-	fread(&CM, 1, 1, bam_fp);
-	fread(&FLG, 1, 1, bam_fp);
+	int ret = fread(&ID1, 1, 1, bam_fp);
+	if(ret<1) return -1;
+	ret = fread(&ID2, 1, 1, bam_fp);
+	ret = fread(&CM, 1, 1, bam_fp);
+	ret = fread(&FLG, 1, 1, bam_fp);
 	if(feof(bam_fp)) return -1;
 
 	if(ID1!=31 || ID2!=139 || CM!=8 || FLG!=4)
@@ -328,7 +329,7 @@ int PBam_get_next_zchunk(FILE * bam_fp, char * buffer, int buffer_length, unsign
 		return -1;
 	}
 	fseeko(bam_fp, 6, SEEK_CUR);
-	fread(&XLEN,1, 2, bam_fp );
+	ret = fread(&XLEN,1, 2, bam_fp );
 
 	int XLEN_READ = 0;
 	while(1)
@@ -336,13 +337,13 @@ int PBam_get_next_zchunk(FILE * bam_fp, char * buffer, int buffer_length, unsign
 		unsigned char SI1, SI2;
 		unsigned short SLEN, BSIZE_MID;
 		
-		fread(&SI1, 1, 1, bam_fp);
-		fread(&SI2, 1, 1, bam_fp);
-		fread(&SLEN, 1, 2, bam_fp);
+		ret = fread(&SI1, 1, 1, bam_fp);
+		ret = fread(&SI2, 1, 1, bam_fp);
+		ret = fread(&SLEN, 1, 2, bam_fp);
 
 		if(SI1==66 && SI2== 67 && SLEN == 2)
 		{
-			fread(&BSIZE_MID, 1,2 , bam_fp);
+			ret = fread(&BSIZE_MID, 1,2 , bam_fp);
 			BSIZE = BSIZE_MID;
 		}
 		else	fseeko(bam_fp, SLEN, SEEK_CUR);
@@ -354,11 +355,11 @@ int PBam_get_next_zchunk(FILE * bam_fp, char * buffer, int buffer_length, unsign
 	{
 		int CDATA_LEN = BSIZE - XLEN - 19;
 		int CDATA_READING = min(CDATA_LEN, buffer_length);
-		fread(buffer, 1, CDATA_READING, bam_fp);
+		ret = fread(buffer, 1, CDATA_READING, bam_fp);
 		if(CDATA_READING<CDATA_LEN)
 			fseeko(bam_fp, CDATA_LEN-CDATA_READING, SEEK_CUR);
 		fseeko(bam_fp, 4, SEEK_CUR);
-		fread(&real_len, 4, 1, bam_fp);
+		ret = fread(&real_len, 4, 1, bam_fp);
 
 		return CDATA_READING;
 	}

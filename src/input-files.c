@@ -521,22 +521,22 @@ void sort_SAM_finalise(SAM_sort_writer * writer)
                 short read_len;
                 int ret = fread(&flags, 2,1 , bbfp);
                 if(ret<1) break;
-                fread(&read_name_len, 2,1 , bbfp);
+                ret = fread(&read_name_len, 2,1 , bbfp);
                 if(flags & SAM_FLAG_SECOND_READ_IN_PAIR)
                 fseek(bbfp, read_name_len, SEEK_CUR);
                 else
                 {
                     read_name = malloc(read_name_len+1);
-                    fread(read_name, 1, read_name_len, bbfp);
+                    ret = fread(read_name, 1, read_name_len, bbfp);
                     read_name[read_name_len] = 0;
                 }
-                fread(&read_len,2,1,bbfp);
+                ret = fread(&read_len,2,1,bbfp);
                 if(flags & SAM_FLAG_SECOND_READ_IN_PAIR)
                 fseek(bbfp, read_len, SEEK_CUR);
                 else
                 {
                     char * new_line_mem = malloc(read_len+1);
-                    fread(new_line_mem, 1, read_len, bbfp);
+                    ret = fread(new_line_mem, 1, read_len, bbfp);
                     new_line_mem[read_len] = 0;
                     
                     if(read_len<2)
@@ -589,20 +589,20 @@ void sort_SAM_finalise(SAM_sort_writer * writer)
                 int ret = fread(&flags, 2,1 , bbfp);
                 if(ret<1) break;
                 
-                fread(&read_name_len, 2,1 , bbfp);
+                ret = fread(&read_name_len, 2,1 , bbfp);
                 
                 if(read_name_len>=MAX_READ_NAME_LEN + MAX_CHROMOSOME_NAME_LEN * 2 + 26)
                 SUBREADprintf("VERY_LONG_NAME(%d)\n", read_name_len);
                 if(flags & SAM_FLAG_SECOND_READ_IN_PAIR)
                 {
-                    fread(read_name_buf, 1, read_name_len, bbfp);
+                    ret = fread(read_name_buf, 1, read_name_len, bbfp);
                     read_name_buf[read_name_len] = 0;
                 }
                 else	fseek(bbfp, read_name_len, SEEK_CUR);
-                fread(&read_len, 2,1 , bbfp);
+                ret = fread(&read_len, 2,1 , bbfp);
                 if(flags & SAM_FLAG_SECOND_READ_IN_PAIR)
                 {
-                    fread(read_line_buf, 1, read_len, bbfp);
+                    ret = fread(read_line_buf, 1, read_len, bbfp);
                     read_line_buf[read_len] = 0;
                 }
                 else	fseek(bbfp, read_len, SEEK_CUR);
