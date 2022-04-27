@@ -1,5 +1,4 @@
-VERSE
-=====
+# VERSE
 
 VERSE supports the following modes of RNA-Seq quantification:
     	1. Original featureCounts (Default)
