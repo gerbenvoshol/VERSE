@@ -2,4 +2,6 @@
 7/14/2015	Bug Fixed	Fixed crash cases where there are no unprocessed reads but thread was initiated; fixed merging of WASH6P. 
 		New Feature 	--nonemptyModified
 9/10/2015	Bug Fixed	Corrected counting for Non-unique mapped reads.
-		New Feature	—-multithreadDecompress 
+		New Feature	--multithreadDecompress
+4/27/2022	Bug Fixed	Remove outdated functions, unused variables, formatting
+		New Feature	--additional_attr
