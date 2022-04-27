@@ -11,8 +11,10 @@ VERSE supports the following modes of RNA-Seq quantification:
 6. VERSE Cover-length (-z 5)
 
 Supported Quantification Schemes:
-	Hierarchical Assign: assign reads to feature types according to their priority.
-	Independent Assign: assign reads to feature types independently in a single run.
+
+Hierarchical Assign: assign reads to feature types according to their priority.
+
+Independent Assign: assign reads to feature types independently in a single run.
 
 ## Installation 
 
