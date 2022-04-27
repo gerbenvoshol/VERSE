@@ -20,9 +20,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 
-#ifndef FREEBSD
-#include <sys/timeb.h>
-#endif
+#include <sys/time.h>
 
 #include "HelperFunctions.h"
 
@@ -30,7 +28,6 @@
 // original core functions
 double miltime(){
     double ret;
-#ifdef FREEBSD
     struct timeval tp;
     struct timezone tz;
     tz.tz_minuteswest=0;
@@ -39,13 +36,6 @@ double miltime(){
     gettimeofday(&tp,&tz);
     
     ret = tp.tv_sec+ 0.001*0.001* tp.tv_usec;
-    
-#else
-    
-    struct timeb trp;
-    ftime(&trp);
-    ret = trp.time*1.0+(trp.millitm*1.0/1000.0);
-#endif
     
     return ret;
 }
