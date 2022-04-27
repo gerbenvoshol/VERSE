@@ -3,12 +3,12 @@
 VERSE is designed for high-performance read summarization for next generation sequencing. VERSE is 50x faster than HTSeq when computing the same gene counts. It introduces a novel, hierarchical assignment scheme, which allows simultaneous quantification of multiple feature types or annotation levels without repeatedly assigning reads. There is also a set of parameters the user can use to fine-tune the assignment logic. VERSE can be readily incorporated into any existing RNA-Seq analysis pipelines.
 
 VERSE supports the following modes of RNA-Seq quantification:
-    	1. Original featureCounts (Default)
-    	2. HTSeq Union (-z 1)
-    	3. HTSeq Intersection-strict (-z 2)
-    	4. HTSeq Intersection-nonempty (-z 3)
-    	5. VERSE Union-strict (-z 4)
-	6. VERSE Cover-length (-z 5)
+1. Original featureCounts (Default)
+2. HTSeq Union (-z 1)
+3. HTSeq Intersection-strict (-z 2)
+4. HTSeq Intersection-nonempty (-z 3)
+5. VERSE Union-strict (-z 4)
+6. VERSE Cover-length (-z 5)
 
 Supported Quantification Schemes:
 	Hierarchical Assign: assign reads to feature types according to their priority.
@@ -16,15 +16,22 @@ Supported Quantification Schemes:
 
 ## Installation 
 
-	You can type "make" to see instructions.
-	For Linux OS:
-		make -f Makefile.Linux
-	For Mac OS, use command:
-		make -f Makefile.MacOS
+You can type `make` to see instructions.
+For Linux OS:
+
+```
+make -f Makefile.Linux
+```
+
+For Mac OS, use command:
+
+```
+make -f Makefile.MacOS
+```
 
 ## Usage
 
-Please run "./verse" to see the details.
+Please run `./verse` to see the details.
 
 A sample command:
 
