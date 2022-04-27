@@ -531,7 +531,8 @@ int load_feature_info(fc_thread_global_context_t *global_context, const char * a
     {
         int is_gene_id_found = 0;
         int is_additional_attr_found = 0;
-        fgets(file_line, MAX_LINE_LENGTH, fp);
+        char * fgets_ret =fgets(file_line, MAX_LINE_LENGTH, fp);
+        if(!fgets_ret) break;
         lineno++;
         char * token_temp;
         if(is_comment_line(file_line, FILE_TYPE_GTF, lineno-1))continue;
@@ -1387,7 +1388,7 @@ int probe_pair_name(fc_thread_thread_context_t * thread_context)
 int read_assign(fc_thread_global_context_t * global_context, fc_thread_thread_context_t * thread_context, int f_idx, read_info_t read1, read_info_t read2)
 {
     int nhits1 = 0, nhits2 = 0, alignment_masks, search_block_id;
-    long search_item_id, read_pos;
+    long search_item_id, read_pos, top_voter_id = 0;;
     long * hits_indices1 = thread_context -> hits_indices1, * hits_indices2 = thread_context -> hits_indices2;
     short * hits_total_length1 = thread_context -> hits_total_length1 ,  * hits_total_length2 = thread_context -> hits_total_length2;
     int is_second_read, allow_process = 1;
@@ -1863,7 +1864,7 @@ int read_assign(fc_thread_global_context_t * global_context, fc_thread_thread_co
                     {
                         int max_votes = 0;
                         int top_voters = 0;
-                        long top_voter_id = 0;
+                        top_voter_id = 0;
                         
                         for(xk1 = 0; xk1 < sec_table_items; xk1++)
                         {
@@ -2134,7 +2135,7 @@ int read_assign(fc_thread_global_context_t * global_context, fc_thread_thread_co
 		{
 			int max_votes = 0, xk1;
 			int top_voters = 0;
-			long top_voter_id = 0;
+			top_voter_id = 0;
 
 			for(xk1 = 0; xk1 < decision_table_items; xk1++)
 			{
@@ -3164,10 +3165,11 @@ void fc_write_final_counts(fc_thread_global_context_t * global_context, const ch
 {
 	char fname[350];
 
-    if(global_context->feature_type_num > 1)        // one single summary file if Hierarchical assign
+    if(global_context->feature_type_num > 1) {      // one single summary file if Hierarchical assign
         sprintf(fname, "%s.summary.txt", out_file);
-    else
+    } else {
         sprintf(fname, "%s.%s.summary.txt", out_file, global_context->feature_type_list[0]);        // this is to prevent overwriting if run separately for each feature type
+    }
 	FILE * fp_out = fopen(fname,"w");
 
 	if(!fp_out){
@@ -3695,16 +3697,9 @@ int readSummary(int argc,char *argv[]){
     int run_mode; // The running mode of VERSE
     int f_length; // output length info?
 
-	long curchr, curpos;
-	char * curchr_name;
-	
-	curchr = 0;
-	curpos = 0;
-	curchr_name = "";
-
 	int isPE, minPEDistance, maxPEDistance, isReadDetailReport, isBothEndRequired, isMultiMappingAllowed, fiveEndExtension, threeEndExtension, minReadLength, minReadOverlap, maxReadNonoverlap, isSplitAlignmentOnly, is_duplicate_ignored, minDifAmbiguous, nonempty_modified;
 
-	int isSAM, isGTF, n_input_files=0;
+	int isSAM, isGTF = 0, n_input_files=0;
 	char * cmd_rebuilt = NULL;
 
 	isCVersion = ((argv[0][0]=='C')?1:0);
@@ -4080,8 +4075,7 @@ int readSummary_single_file(fc_thread_global_context_t * global_context, unsigne
     else
         print_in_box(80,0,0,"   Assign reads to features...");
     
-    if(global_context -> is_read_details_out)
-    {
+    if(global_context -> is_read_details_out) {
         char tmp_fname[350];
         sprintf(tmp_fname, "%s.detail.txt", global_context -> output_file_name);
         global_context -> detail_output_fp = fopen(tmp_fname, "w");
@@ -4089,9 +4083,9 @@ int readSummary_single_file(fc_thread_global_context_t * global_context, unsigne
         {
             SUBREADprintf("ERROR: Unable to create file '%s'; the read assignment details are not written.\n", tmp_fname);
         }
-    }
-    else
+    } else {
         global_context -> detail_output_fp = NULL;
+    }
     
 
 	int isPE = global_context->is_paired_end_data;
@@ -4230,8 +4224,9 @@ int readSummary_single_file(fc_thread_global_context_t * global_context, unsigne
 	free(binary_in_buff);
 	//free(preload_line);
 	global_context->is_all_finished = 1;            // bulk finish
-    if(isSAM || !isPE)
+    if(isSAM || !isPE) {
         global_context->is_really_finished = 1;     // if single-end or SAM, complete finish
+    }
 
 	if(global_context->thread_number > 1 || !isSAM)
 		fc_thread_wait_threads(global_context);
