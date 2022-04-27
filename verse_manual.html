@@ -9,7 +9,7 @@
 <meta name="generator" content="pandoc" />
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<meta name="author" content="Junhyong Kim Lab, University of Pennsylvania" />
+<meta name="author" content="Junhyong Kim Lab, University of Pennsylvania<br>Gerben Voshol, GenomeScan B.V." />
 
 
 <title>VERSE User Manual</title>
@@ -30,7 +30,7 @@
 
 
 <h1 class="title">VERSE User Manual</h1>
-<h4 class="author"><em>Junhyong Kim Lab, University of Pennsylvania</em></h4>
+<h4 class="author"><em>Junhyong Kim Lab, University of Pennsylvania<br>Gerben Voshol, GenomeScan B.V.</em></h4>
 
 </div>
 
@@ -100,7 +100,10 @@
     
     -g &lt;input&gt;  Specify the gene_identifier attribute, which is normally 'gene_id'
                 or 'gene_name'. 'gene_id' by default.
-    
+
+    --additional_attr &lt;input&gt;   Specify an additional gene_identifier attribute,
+                e.g. 'gene_id' or 'gene_name'.
+
     -S          If the input file is paired-end data but not sorted by read name,
                 this option MUST be specified.
     
