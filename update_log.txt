@@ -3,5 +3,5 @@
 		New Feature 	--nonemptyModified
 9/10/2015	Bug Fixed	Corrected counting for Non-unique mapped reads.
 		New Feature	--multithreadDecompress
-4/27/2022	Bug Fixed	Remove outdated functions, unused variables, formatting
+4/27/2022	Bug Fixed	Remove outdated functions, unused variables, source code formatting, directory cleanup
 		New Feature	--additional_attr
