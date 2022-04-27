@@ -61,6 +61,7 @@
 typedef struct
 {
 	unsigned int feature_name_pos;
+	unsigned int additional_feature_name_pos;
 	unsigned int start;
 	unsigned int end;
 	unsigned int sorted_order;
@@ -225,6 +226,9 @@ typedef struct
     int feature_type_num;
     
 	char gene_id_column[100];
+	char *additional_attr_column;
+
+	unsigned char *** additional_attr_array;
 
 	long ** exontable_block_end_index;
 	long ** exontable_block_max_end;
@@ -461,6 +465,7 @@ int load_feature_info(fc_thread_global_context_t *global_context, const char * a
     char * file_line = malloc(MAX_LINE_LENGTH+1);
     FILE * fp = fopen(annotation_file,"r");
     int is_GFF_warned = 0;
+    int additional_is_GFF_warned = 0;
     if(!fp) return -1;
     
     HashTable * chro_name_table = HashTableCreate(1603);
@@ -525,6 +530,7 @@ int load_feature_info(fc_thread_global_context_t *global_context, const char * a
     while(xk1 < features)
     {
         int is_gene_id_found = 0;
+        int is_additional_attr_found = 0;
         fgets(file_line, MAX_LINE_LENGTH, fp);
         lineno++;
         char * token_temp;
@@ -532,6 +538,7 @@ int load_feature_info(fc_thread_global_context_t *global_context, const char * a
         
         
         char feature_name_tmp[FEATURE_NAME_LENGTH];
+        char additional_feature_name_tmp[FEATURE_NAME_LENGTH];
         sprintf(feature_name_tmp, "LINE_%07u", xk1 + 1);
         char * seq_name = strtok_r(file_line,"\t",&token_temp);
         strtok_r(NULL,"\t", &token_temp);       //source
@@ -571,6 +578,30 @@ int load_feature_info(fc_thread_global_context_t *global_context, const char * a
                 is_GFF_warned++;
             }
             
+            if (global_context -> additional_attr_column) {
+	            if(extra_attrs && (strlen(extra_attrs)>2))
+	            {
+	                int attr_val_len = GTF_extra_column_value(extra_attrs , global_context -> additional_attr_column, additional_feature_name_tmp, FEATURE_NAME_LENGTH);
+	                if(attr_val_len>0) is_additional_attr_found=1;
+	                //		printf("V=%s\tR=%d\n", extra_attrs , attr_val_len);
+	            }
+	            if(is_additional_attr_found)
+	            {
+		            int additional_feature_name_len = strlen(additional_feature_name_tmp);
+		            if(additional_feature_name_len > FEATURE_NAME_LENGTH) additional_feature_name_tmp[FEATURE_NAME_LENGTH - 1] = 0;
+		            ret_features[xk1].additional_feature_name_pos = unistr_cpy(global_context, (char *)additional_feature_name_tmp, additional_feature_name_len, f_idx);
+	            }
+	            else
+	            {
+	                if(!additional_is_GFF_warned)
+	                {
+	                    int ext_att_len = strlen(extra_attrs);
+	                    if(extra_attrs[ext_att_len-1] == '\n') extra_attrs[ext_att_len-1] =0;
+	                    SUBREADprintf("\nWarning: failed to find the gene identifier attribute in the 9th column of the provided GTF file.\nThe specified additional gene identifier attribute is '%s' \nThe attributes included in your GTF annotation are '%s' \n\n",  global_context -> additional_attr_column, extra_attrs);
+	                }
+	                additional_is_GFF_warned++;
+	            }
+        	}
             int feature_name_len = strlen(feature_name_tmp);
             if(feature_name_len > FEATURE_NAME_LENGTH) feature_name_tmp[FEATURE_NAME_LENGTH - 1] = 0;
             ret_features[xk1].feature_name_pos = unistr_cpy(global_context, (char *)feature_name_tmp, feature_name_len, f_idx);
@@ -606,7 +637,7 @@ int load_feature_info(fc_thread_global_context_t *global_context, const char * a
     return features;
 }
 
-int find_or_insert_gene_name(fc_thread_global_context_t * global_context, unsigned char * feature_name, int f_idx)
+int find_or_insert_gene_name(fc_thread_global_context_t * global_context, unsigned char * feature_name, unsigned char * additional_feature_name, int f_idx)
 {
 	HashTable * genetable = global_context -> gene_name_table[f_idx];
 
@@ -618,6 +649,9 @@ int find_or_insert_gene_name(fc_thread_global_context_t * global_context, unsign
 		gene_number = genetable -> numOfElements; 
 		HashTablePut(genetable, feature_name, NULL+gene_number+1);
 		global_context -> gene_name_array[f_idx][gene_number] = feature_name;
+		if (global_context -> additional_attr_column && additional_feature_name) {
+			global_context -> additional_attr_array[f_idx][gene_number] = additional_feature_name;
+		}
 			// real memory space of feature_name is in the "loaded_features" data structure.
 			// now we only save its pointer.
 
@@ -898,7 +932,9 @@ int sort_feature_info(fc_thread_global_context_t * global_context, unsigned int 
     global_context -> gene_name_table[f_idx] = HashTableCreate(5000);
     HashTableSetHashFunction(global_context -> gene_name_table[f_idx], HashTableStringHashFunction);
     HashTableSetKeyComparisonFunction(global_context -> gene_name_table[f_idx], fc_strcmp);
-    
+
+    global_context -> additional_attr_array[f_idx] = malloc(sizeof(char *) * features);	// there should be much less identical names.
+
     long * new_start = malloc(sizeof(long) * features);
     long * new_end = malloc(sizeof(long) * features);
     int * new_entrez = malloc(sizeof(int) * features);
@@ -952,7 +988,11 @@ int sort_feature_info(fc_thread_global_context_t * global_context, unsigned int 
         unsigned int this_chro_number = this_chro_info -> chro_number;
         unsigned int this_chro_table_ptr = chro_feature_ptr[this_chro_number];
         //arrays storing info of each feature
-        ret_entrez[this_chro_table_ptr] = find_or_insert_gene_name(global_context, (unsigned char *)(global_context -> unistr_buffer_space[f_idx] + loaded_features[chro_pnt].feature_name_pos), f_idx);
+        if (global_context -> additional_attr_column) {
+        	ret_entrez[this_chro_table_ptr] = find_or_insert_gene_name(global_context, (unsigned char *)(global_context -> unistr_buffer_space[f_idx] + loaded_features[chro_pnt].feature_name_pos), (unsigned char *)(global_context -> unistr_buffer_space[f_idx] + loaded_features[chro_pnt].additional_feature_name_pos), f_idx);
+        } else {
+        	ret_entrez[this_chro_table_ptr] = find_or_insert_gene_name(global_context, (unsigned char *)(global_context -> unistr_buffer_space[f_idx] + loaded_features[chro_pnt].feature_name_pos), NULL, f_idx);
+        }
         ret_start[this_chro_table_ptr] = loaded_features[chro_pnt].start;
         ret_end[this_chro_table_ptr] = loaded_features[chro_pnt].end;
         ret_strand[this_chro_table_ptr] = loaded_features[chro_pnt].is_negative_strand;
@@ -2816,7 +2856,7 @@ void fc_thread_merge_results(fc_thread_global_context_t * global_context, unsign
     }
 }
 
-void fc_thread_init_global_context(fc_thread_global_context_t * global_context, unsigned int buffer_size, unsigned short threads, int line_length , int is_PE_data, int min_pe_dist, int max_pe_dist, int is_strand_checked, char * output_fname, int is_detail_out, int is_both_end_required, int is_chimertc_disallowed, int is_PE_distance_checked, char *feature_name_column, char * gene_id_column, int min_map_qual_score, int is_multi_mapping_allowed, int is_SAM, char * cmd_rebuilt, int is_input_file_resort_needed, int feature_block_size, int isCVersion, int fiveEndExtension,  int threeEndExtension, int minReadLength, int minReadOverlap, int maxReadNonoverlap, int is_split_alignments_only, int reduce_5_3_ends_to_one, char * debug_command, int is_duplicate_ignored, int run_mode, int minDifAmbiguous, int featureTypeNum, char ** featureTypeList, int isindependentAssign, int nonempty_modified, int multithreadunzip)
+void fc_thread_init_global_context(fc_thread_global_context_t * global_context, unsigned int buffer_size, unsigned short threads, int line_length , int is_PE_data, int min_pe_dist, int max_pe_dist, int is_strand_checked, char * output_fname, int is_detail_out, int is_both_end_required, int is_chimertc_disallowed, int is_PE_distance_checked, char *feature_name_column, char * gene_id_column, char * additional_attr_column, int min_map_qual_score, int is_multi_mapping_allowed, int is_SAM, char * cmd_rebuilt, int is_input_file_resort_needed, int feature_block_size, int isCVersion, int fiveEndExtension,  int threeEndExtension, int minReadLength, int minReadOverlap, int maxReadNonoverlap, int is_split_alignments_only, int reduce_5_3_ends_to_one, char * debug_command, int is_duplicate_ignored, int run_mode, int minDifAmbiguous, int featureTypeNum, char ** featureTypeList, int isindependentAssign, int nonempty_modified, int multithreadunzip)
 {
 
 	global_context -> input_buffer_max_size = buffer_size;
@@ -2856,6 +2896,13 @@ void fc_thread_init_global_context(fc_thread_global_context_t * global_context, 
 
 	strcpy(global_context -> feature_name_column,feature_name_column);
 	strcpy(global_context -> gene_id_column,gene_id_column);
+	if (additional_attr_column) {
+		printf("HERE\n");
+		global_context -> additional_attr_column = malloc(strlen(additional_attr_column)+1);
+		strcpy(global_context -> additional_attr_column, additional_attr_column);
+	} else {
+		global_context -> additional_attr_column = NULL;
+	}
 	strcpy(global_context -> output_file_name, output_fname);
 
 	global_context -> min_paired_end_distance = min_pe_dist;
@@ -2874,6 +2921,7 @@ void fc_thread_init_global_context(fc_thread_global_context_t * global_context, 
     global_context -> exontable_nchrs = malloc(sizeof(int) * featureTypeNum);
     global_context -> gene_name_array = malloc(sizeof(unsigned char **) * featureTypeNum);
     global_context -> gene_name_table = malloc(sizeof(HashTable *) * featureTypeNum);
+    global_context -> additional_attr_array = malloc(sizeof(unsigned char **) * featureTypeNum);
     global_context -> exontable_chro_table = malloc(sizeof(HashTable *) * featureTypeNum);
     global_context -> original_exons = malloc(sizeof(int) * featureTypeNum);
     global_context -> exontable_exons = malloc(sizeof(int) * featureTypeNum);
@@ -3072,7 +3120,11 @@ void fc_write_final_gene_results(fc_thread_global_context_t * global_context, in
 		return;
 	}
 	char * tmp_ptr = NULL, * next_fn;
-    fprintf(fp_out,"gene\tcount");
+	if (global_context -> additional_attr_column) {
+		fprintf(fp_out,"gene\tadditional_attr\tcount");
+	} else {
+    	fprintf(fp_out,"gene\tcount");
+	}
     if(f_length)
         fprintf(fp_out,"\tlength");
     fprintf(fp_out, "\n");
@@ -3086,11 +3138,18 @@ void fc_write_final_gene_results(fc_thread_global_context_t * global_context, in
         if(f_length)
             gene_lengths[gene_id] += (et_stop[xk1] - et_start[xk1] + 1);
     }
-    
+
     for(xk1 = 0 ; xk1 < genes; xk1++)
     {
         unsigned char * gene_symbol = global_context -> gene_name_array[f_idx][xk1];
-        fprintf(fp_out, "%s\t%u", gene_symbol, gene_columns[xk1]);
+        /* Additional Attr */
+		unsigned char * additional_attr_name = global_context -> additional_attr_array[f_idx][xk1];
+
+		if (global_context -> additional_attr_column) {
+        	fprintf(fp_out, "%s\t%s\t%u", gene_symbol, additional_attr_name, gene_columns[xk1]);
+    	} else {
+    		fprintf(fp_out, "%s\t%u", gene_symbol, gene_columns[xk1]);
+    	}
         if(f_length)
             fprintf(fp_out, "\t%ld", gene_lengths[xk1]);
         fprintf(fp_out,"\n");
@@ -3174,6 +3233,7 @@ static struct option long_options[] =
     {"assignIndependently",no_argument, 0, 0},
     {"nonemptyModified",no_argument, 0, 0},
     {"multithreadDecompress",no_argument, 0, 0},
+    {"additional_attr", required_argument, 0, 0},
 	{0, 0, 0, 0}
 };
 
@@ -3215,6 +3275,9 @@ void print_usage()
 	VERSEputs("    -g <input>\tSpecify the gene_identifier attribute, which is normally 'gene_id'");
 	VERSEputs("              \tor 'gene_name'. 'gene_id' by default.");
 	VERSEputs("    ");
+    VERSEputs("    --additional_attr           Specify an additional gene_identifier attribute,");
+	VERSEputs("              \te.g. 'gene_id' or 'gene_name'.");
+    VERSEputs("    ");
     VERSEputs("    -S        \tIf the input file is paired-end data but not sorted by read name,");
     VERSEputs("              \tthis option MUST be specified.");
     VERSEputs("    ");
@@ -3624,7 +3687,8 @@ int readSummary(int argc,char *argv[]){
 
 	int isStrandChecked, isCVersion, isChimericDisallowed, isPEDistChecked, minMappingQualityScore=0, isInputFileResortNeeded, feature_block_size = 20, reduce_5_3_ends_to_one;
 
-	char *nameFeatureTypeColumn, *nameGeneIDColumn,*debug_command;
+	//ADD: nameAdditionalAttrColumn additional-attr
+	char *nameFeatureTypeColumn, *nameGeneIDColumn,*debug_command, *nameAdditionalAttrColumn = NULL;
     char * nameFeatureTypeList[MAX_FEATURE_TYPE_NUM + 1];
     int featureTypeNum = 0;
     int is_independent_assign, multithreadunzip;
@@ -3753,7 +3817,9 @@ int readSummary(int argc,char *argv[]){
     if(argc>37)
         multithreadunzip = atoi(argv[37]);
     else    multithreadunzip = 0;
-    
+
+	if(argc > 38)
+		nameAdditionalAttrColumn = argv[38];
 
 	unsigned int buffer_size = 1024*1024*64;
 
@@ -3778,7 +3844,7 @@ int readSummary(int argc,char *argv[]){
     featureTypeNum = i;
 
 	fc_thread_global_context_t global_context;
-	fc_thread_init_global_context(& global_context, buffer_size, thread_number, MAX_LINE_LENGTH, isPE, minPEDistance, maxPEDistance, isStrandChecked, (char *)argv[3] , isReadDetailReport, isBothEndRequired, isChimericDisallowed, isPEDistChecked, nameFeatureTypeColumn, nameGeneIDColumn, minMappingQualityScore,isMultiMappingAllowed, isSAM, cmd_rebuilt, isInputFileResortNeeded, feature_block_size, isCVersion, fiveEndExtension, threeEndExtension, minReadLength, minReadOverlap, maxReadNonoverlap, isSplitAlignmentOnly, reduce_5_3_ends_to_one, debug_command, is_duplicate_ignored, run_mode, minDifAmbiguous, featureTypeNum, nameFeatureTypeList, is_independent_assign, nonempty_modified, multithreadunzip);
+	fc_thread_init_global_context(& global_context, buffer_size, thread_number, MAX_LINE_LENGTH, isPE, minPEDistance, maxPEDistance, isStrandChecked, (char *)argv[3] , isReadDetailReport, isBothEndRequired, isChimericDisallowed, isPEDistChecked, nameFeatureTypeColumn, nameGeneIDColumn, nameAdditionalAttrColumn, minMappingQualityScore,isMultiMappingAllowed, isSAM, cmd_rebuilt, isInputFileResortNeeded, feature_block_size, isCVersion, fiveEndExtension, threeEndExtension, minReadLength, minReadOverlap, maxReadNonoverlap, isSplitAlignmentOnly, reduce_5_3_ends_to_one, debug_command, is_duplicate_ignored, run_mode, minDifAmbiguous, featureTypeNum, nameFeatureTypeList, is_independent_assign, nonempty_modified, multithreadunzip);
 	print_FC_configuration(&global_context, argv[1], argv[2], argv[3], global_context.is_SAM_file, & n_input_files, isReadDetailReport, nameFeatureTypeColumn);
 
 	// Loading the annotations.
@@ -3881,6 +3947,7 @@ int readSummary(int argc,char *argv[]){
         free(column_numbers[f_idx]);
         HashTableDestroy(global_context.gene_name_table[f_idx]);
         free(global_context.gene_name_array[f_idx]);
+        free(global_context.additional_attr_array[f_idx]);
         HashTableDestroy(global_context.exontable_chro_table[f_idx]);
         free(loaded_features[f_idx]);
         free(merged_features[f_idx]);
@@ -3899,6 +3966,7 @@ int readSummary(int argc,char *argv[]){
     free(global_context.exontable_nchrs);
     free(global_context.gene_name_array);
     free(global_context.gene_name_table);
+    free(global_context.additional_attr_array);
     free(global_context.exontable_chro_table);
     free(global_context.unistr_buffer_space);
     free(global_context.unistr_buffer_used);
@@ -3906,7 +3974,8 @@ int readSummary(int argc,char *argv[]){
     free(global_context.original_exons);
     free(global_context.exontable_exons);
     free(global_context.read_counters);
-    
+    free(global_context.additional_attr_column);
+
 	if(global_context.detail_output_fp) fclose(global_context. detail_output_fp);
     
     if(global_context.unprocessed_cnts)
@@ -4234,13 +4303,15 @@ int readSummary_single_file(fc_thread_global_context_t * global_context, unsigne
 
 int main(int argc, char ** argv)
 {
-    char * Rargv[38];
+    char * Rargv[39];
 	char annot_name[300];
 	char * out_name = malloc(300);
 	int cmd_rebuilt_size = 200;
 	char * cmd_rebuilt = malloc(cmd_rebuilt_size);
 	char nameFeatureTypeColumn[200];
 	char nameGeneIDColumn[66];
+	char nameAdditionalAttrColumn[66];
+	int nameAdditionalAttrColumnSet = 0;
 	int min_qual_score = 0;
 	int min_dist = 50;
 	int max_dist = 600;
@@ -4433,7 +4504,12 @@ int main(int argc, char ** argv)
                 {
                     multithreadunzip = 1;
                 }
-
+                if(strcmp("additional_attr", long_options[option_index].name)==0)
+                {
+					while((*optarg) == ' ') optarg++;
+					strcpy(nameAdditionalAttrColumn, optarg);
+					nameAdditionalAttrColumnSet = 1;
+                }
 				break;
 			case '?':
 			default :
@@ -4543,8 +4619,13 @@ int main(int argc, char ** argv)
     Rargv[35] = f_length?"1":"0";
     Rargv[36] = nonemptyModified?"1":"0";
     Rargv[37] = multithreadunzip?"1":"0";
-
-	readSummary(38, Rargv);
+    if (nameAdditionalAttrColumnSet) {
+    	Rargv[38] = nameAdditionalAttrColumn;
+	} else {
+		Rargv[38] = NULL;
+	}
+	
+	readSummary(39, Rargv);
 
 	free(very_long_file_names);
 	free(out_name);
