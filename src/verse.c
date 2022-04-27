@@ -2897,7 +2897,6 @@ void fc_thread_init_global_context(fc_thread_global_context_t * global_context, 
 	strcpy(global_context -> feature_name_column,feature_name_column);
 	strcpy(global_context -> gene_id_column,gene_id_column);
 	if (additional_attr_column) {
-		printf("HERE\n");
 		global_context -> additional_attr_column = malloc(strlen(additional_attr_column)+1);
 		strcpy(global_context -> additional_attr_column, additional_attr_column);
 	} else {
@@ -4624,7 +4623,7 @@ int main(int argc, char ** argv)
 	} else {
 		Rargv[38] = NULL;
 	}
-	
+
 	readSummary(39, Rargv);
 
 	free(very_long_file_names);
